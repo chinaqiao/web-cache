@@ -34,5 +34,18 @@ export const CONFIG = {
     maxTotalSize: 100 * 1024 * 1024,
     // 缓存过期时间（7天）
     expirationTime: 7 * 24 * 60 * 60 * 1000
+  },
+
+  // 加密配置
+  crypto: {
+    // 密钥轮换间隔（24小时）
+    keyRotationInterval: 24 * 60 * 60 * 1000,
+    // 加密算法
+    algorithm: {
+      name: 'AES-GCM',
+      length: 256
+    },
+    // 初始化向量长度
+    ivLength: 12
   }
 }; 

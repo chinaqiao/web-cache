@@ -1,11 +1,13 @@
 import { CONFIG } from '../config/index.js';
 import { Validator } from '../utils/validator.js';
 import { calculateHash, calculateBlobHash } from '../utils/hash.js';
+import { CryptoManager } from '../utils/crypto.js';
 
 export class CacheManager {
   constructor(idb) {
     this.idb = idb;
     this.validator = new Validator();
+    this.cryptoManager = new CryptoManager();
     this.storeName = 'resources';
   }
 
@@ -40,10 +42,22 @@ export class CacheManager {
       throw new Error('Total cache size exceeds limit');
     }
 
+    // 获取资源密钥
+    const key = await this.cryptoManager.getResourceKey(url);
+    
+    // 准备加密数据
+    const contentBuffer = content instanceof Blob 
+      ? await content.arrayBuffer()
+      : new TextEncoder().encode(content).buffer;
+    
+    // 加密数据
+    const { encrypted, iv } = await this.cryptoManager.encrypt(key, contentBuffer);
+
     // 存储资源
     const resource = {
       url,
-      content,
+      content: encrypted,
+      iv,
       type,
       hash,
       size: contentSize,
@@ -71,7 +85,24 @@ export class CacheManager {
       return null;
     }
 
-    return resource.content;
+    // 获取解密密钥
+    const key = await this.cryptoManager.getResourceKey(url);
+    
+    // 解密数据
+    const decrypted = await this.cryptoManager.decrypt(
+      key,
+      resource.content,
+      resource.iv
+    );
+
+    // 根据资源类型返回适当格式
+    if (resource.type === CONFIG.resourceTypes.IMAGE) {
+      return new Blob([decrypted], { type: 'image/*' });
+    } else if (resource.type === CONFIG.resourceTypes.JS || resource.type === CONFIG.resourceTypes.CSS) {
+      return new TextDecoder().decode(decrypted);
+    }
+
+    return decrypted;
   }
 
   /**

@@ -47,7 +47,7 @@ const init = async () => {
       });
       console.log('Service Worker 注册成功:', registration);
     } catch (error) {
-      console.error('Service Worker 注册失败:', error);
+      console.error('Service Worker 注册失败2:', error);
     }
   }
 
