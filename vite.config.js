@@ -45,11 +45,10 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'demo/index.html')
+        main: resolve(__dirname, 'index.html')
       }
     }
   },
-  publicDir: 'demo/public',
   optimizeDeps: {
     exclude: ['sw.js']
   }
