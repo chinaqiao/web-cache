@@ -26,6 +26,7 @@ const generateCertificate = () => {
 };
 
 export default defineConfig({
+  publicDir: 'public',
   plugins: [vue()],
   resolve: {
     alias: {
@@ -50,6 +51,6 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    exclude: ['sw.js']
+    exclude: ['/src/sw.js']
   }
 }); 
