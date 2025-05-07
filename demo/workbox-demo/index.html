@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workbox + IndexedDB Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #result {
+            border: 1px solid #ccc;
+            padding: 10px;
+            min-height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Workbox + IndexedDB Demo</h1>
+        <div>
+            <button id="fetchData">获取数据</button>
+            <button id="clearCache">清除缓存</button>
+        </div>
+        <div id="result">结果将显示在这里...</div>
+    </div>
+    <script type="module" src="./app.js"></script>
+</body>
+</html> 
