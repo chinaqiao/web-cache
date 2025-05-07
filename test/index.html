@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>缓存系统测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 15px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>缓存系统测试页面</h1>
+
+    <div class="test-section">
+        <h2>1. 工具类测试</h2>
+        <div>
+            <h3>Hash 计算测试</h3>
+            <input type="text" id="hashInput" placeholder="输入要计算hash的文本">
+            <button onclick="testHash()">计算Hash</button>
+            <div id="hashResult" class="test-result"></div>
+        </div>
+
+        <div>
+            <h3>验证器测试</h3>
+            <input type="text" id="versionInput" placeholder="输入版本号 (如: 1.0.0)">
+            <button onclick="testVersion()">验证版本号</button>
+            <div id="versionResult" class="test-result"></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 资源缓存测试</h2>
+        <div>
+            <h3>图片缓存测试</h3>
+            <input type="file" id="imageInput" accept="image/*">
+            <button onclick="testImageCache()">缓存图片</button>
+            <div id="imageResult" class="test-result"></div>
+        </div>
+
+        <div>
+            <h3>JS文件缓存测试</h3>
+            <input type="file" id="jsInput" accept=".js">
+            <button onclick="testJsCache()">缓存JS</button>
+            <div id="jsResult" class="test-result"></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 缓存管理测试</h2>
+        <div>
+            <button onclick="testGetStats()">获取缓存统计</button>
+            <button onclick="testCleanCache('image')">清理图片缓存</button>
+            <button onclick="testCleanCache('js')">清理JS缓存</button>
+            <button onclick="testCleanCache('all')">清理所有缓存</button>
+            <div id="cacheResult" class="test-result"></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. 错误日志测试</h2>
+        <div>
+            <button onclick="testErrorLog()">测试错误日志</button>
+            <button onclick="testGetLogs()">获取错误日志</button>
+            <button onclick="testCleanLogs()">清理错误日志</button>
+            <div id="logResult" class="test-result"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { calculateHash, calculateBlobHash } from '../src/utils/hash.js';
+        import { Validator } from '../src/utils/validator.js';
+        import { Logger } from '../src/utils/logger.js';
+        import { CONFIG } from '../src/config/index.js';
+        import { CacheManager } from '../src/core/CacheManager.js';
+        import { IDB } from '../src/core/IDB.js';
+
+        // 初始化
+        const idb = new IDB(CONFIG.db.name, CONFIG.db.version, {
+          onupgradeneeded: (e) => {
+            const db = e.target.result;
+            db.createObjectStore('resources');
+            db.createObjectStore('errorLogs');
+          }
+        });
+        await idb.open();
+
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            try {
+                const registration = await navigator.serviceWorker.register('/src/sw.js');
+                console.log('Service Worker 注册成功:', registration);
+            } catch (error) {
+                console.error('Service Worker 注册失败:', error);
+            }
+        }
+
+        const validator = new Validator();
+        const logger = new Logger(idb);
+        const cacheManager = new CacheManager(idb);
+
+        // 暴露给全局的测试函数
+        window.testHash = async function() {
+            const input = document.getElementById('hashInput').value;
+            try {
+                const hash = await calculateHash(input);
+                document.getElementById('hashResult').innerHTML = 
+                    `<span class="success">Hash值: ${hash}</span>`;
+            } catch (error) {
+                document.getElementById('hashResult').innerHTML = 
+                    `<span class="error">错误: ${error.message}</span>`;
+            }
+        };
+
+        window.testVersion = function() {
+            const version = document.getElementById('versionInput').value;
+            const isValid = validator.validateVersion(version);
+            document.getElementById('versionResult').innerHTML = 
+                `<span class="${isValid ? 'success' : 'error'}">
+                    ${isValid ? '版本号格式正确' : '版本号格式错误'}
+                </span>`;
+        };
+
+        window.testImageCache = async function() {
+            const file = document.getElementById('imageInput').files[0];
+            if (!file) {
+                document.getElementById('imageResult').innerHTML = 
+                    '<span class="error">请选择图片文件</span>';
+                return;
+            }
+
+            try {
+                const url = URL.createObjectURL(file);
+                await cacheManager.cache(url, file, CONFIG.resourceTypes.IMAGE);
+                document.getElementById('imageResult').innerHTML = 
+                    `<span class="success">
+                        文件大小: ${(file.size / 1024).toFixed(2)}KB<br>
+                        缓存成功
+                    </span>`;
+                // 更新统计信息
+                await testGetStats();
+            } catch (error) {
+                document.getElementById('imageResult').innerHTML = 
+                    `<span class="error">错误: ${error.message}</span>`;
+            }
+        };
+
+        window.testJsCache = async function() {
+            const file = document.getElementById('jsInput').files[0];
+            if (!file) {
+                document.getElementById('jsResult').innerHTML = 
+                    '<span class="error">请选择JS文件</span>';
+                return;
+            }
+
+            try {
+                const content = await file.text();
+                const url = URL.createObjectURL(file);
+                await cacheManager.cache(url, content, CONFIG.resourceTypes.JS);
+                document.getElementById('jsResult').innerHTML = 
+                    `<span class="success">
+                        文件大小: ${(file.size / 1024).toFixed(2)}KB<br>
+                        缓存成功
+                    </span>`;
+                // 更新统计信息
+                await testGetStats();
+            } catch (error) {
+                document.getElementById('jsResult').innerHTML = 
+                    `<span class="error">错误: ${error.message}</span>`;
+            }
+        };
+
+        window.testErrorLog = async function() {
+            try {
+                await logger.logError(new Error('测试错误'), {
+                    test: true,
+                    time: new Date().toISOString()
+                });
+                document.getElementById('logResult').innerHTML = 
+                    '<span class="success">错误日志记录成功</span>';
+            } catch (error) {
+                document.getElementById('logResult').innerHTML = 
+                    `<span class="error">错误: ${error.message}</span>`;
+            }
+        };
+
+        // 更新缓存管理测试函数
+        window.testGetStats = async function() {
+            try {
+                const stats = await cacheManager.getStats();
+                document.getElementById('cacheResult').innerHTML = 
+                    `<span class="success">
+                        总大小: ${(stats.totalSize / 1024 / 1024).toFixed(2)}MB<br>
+                        资源数量: ${stats.resourceCount}<br>
+                        类型统计:<br>
+                        ${Object.entries(stats.typeStats).map(([type, count]) => 
+                            `${type}: ${count}个`
+                        ).join('<br>')}
+                    </span>`;
+            } catch (error) {
+                document.getElementById('cacheResult').innerHTML = 
+                    `<span class="error">错误: ${error.message}</span>`;
+            }
+        };
+
+        window.testCleanCache = async function(type) {
+            try {
+                await cacheManager.clean(type);
+                document.getElementById('cacheResult').innerHTML = 
+                    `<span class="success">成功清理${type}缓存</span>`;
+                // 更新统计信息
+                await testGetStats();
+            } catch (error) {
+                document.getElementById('cacheResult').innerHTML = 
+                    `<span class="error">错误: ${error.message}</span>`;
+            }
+        };
+
+        window.testGetLogs = function() {
+            document.getElementById('logResult').innerHTML = 
+                '<span class="error">获取日志功能尚未实现</span>';
+        };
+
+        window.testCleanLogs = function() {
+            document.getElementById('logResult').innerHTML = 
+                '<span class="error">清理日志功能尚未实现</span>';
+        };
+    </script>
+</body>
+</html> 
