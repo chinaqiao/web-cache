@@ -26,16 +26,20 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "vue": "^3.4.15"
+    "idb": "^8.0.2",
+    "vue": "^3.4.15",
+    "workbox-routing": "^7.3.0",
+    "workbox-strategies": "^7.3.0",
+    "workbox-window": "^7.3.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.0",
     "@rollup/plugin-node-resolve": "^15.0.0",
     "@rollup/plugin-typescript": "^11.0.0",
+    "@vitejs/plugin-vue": "^5.0.3",
     "http-server": "^14.1.1",
     "rollup": "^3.0.0",
     "typescript": "^5.0.0",
-    "@vitejs/plugin-vue": "^5.0.3",
     "vite": "^5.0.12"
   }
-} 
+}
